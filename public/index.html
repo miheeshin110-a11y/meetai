@@ -10,7 +10,7 @@
     <main class="shell">
       <section class="topbar">
         <div>
-          <p class="eyebrow">MeetAI v7-debug</p>
+          <p class="eyebrow">MeetAI</p>
           <h1>회의록 관리</h1>
         </div>
         <div class="status" id="status">대기 중</div>
@@ -49,17 +49,19 @@
 
           <div class="actions">
             <button type="submit" id="generate-button">AI 회의록 생성</button>
-            <button type="button" id="publish-button" disabled>Notion 업로드 + Slack 알림</button>
           </div>
         </form>
 
-        <section class="panel preview">
+        <section class="panel preview" id="preview-panel" hidden>
           <div class="panel-head">
             <h2>회의록 미리보기</h2>
             <a id="notion-link" class="link" href="#" target="_blank" rel="noreferrer" hidden>Notion 열기</a>
           </div>
           <div id="empty-state" class="empty">AI 회의록을 생성하면 여기에서 확인하고 수정할 수 있습니다.</div>
           <div id="editor" class="editor" hidden></div>
+          <div class="preview-actions">
+            <button type="button" id="publish-button" disabled>Notion 업로드 + Slack 알림</button>
+          </div>
         </section>
       </section>
     </main>

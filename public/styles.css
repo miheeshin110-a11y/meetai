@@ -17,6 +17,7 @@
 
 body {
   margin: 0;
+  overflow-x: hidden;
   min-height: 100vh;
   background: var(--bg);
   color: var(--ink);
@@ -84,9 +85,11 @@ h2 {
   grid-template-columns: minmax(360px, 0.95fr) minmax(420px, 1.05fr);
   gap: 18px;
   align-items: start;
+  min-width: 0;
 }
 
 .panel {
+  min-width: 0;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel);
@@ -112,6 +115,7 @@ label {
   display: grid;
   gap: 7px;
   margin-bottom: 14px;
+  min-width: 0;
 }
 
 label span {
@@ -122,6 +126,8 @@ label span {
 
 input,
 textarea {
+  min-width: 0;
+  max-width: 100%;
   width: 100%;
   border: 1px solid #cfc8bd;
   border-radius: 6px;
@@ -147,6 +153,12 @@ textarea {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.preview-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 18px;
 }
 
 button,
@@ -186,6 +198,10 @@ button:disabled {
 
 .preview {
   min-height: 640px;
+}
+
+.preview[hidden] {
+  display: none;
 }
 
 .empty {
@@ -237,8 +253,8 @@ button:disabled {
 
 @media (max-width: 900px) {
   .shell {
-    width: min(100% - 24px, 760px);
-    padding: 28px 0;
+    width: 100%;
+    padding: 14px 12px 28px;
   }
 
   .topbar {
@@ -251,7 +267,27 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 
+  .panel {
+    padding: 22px;
+    width: 100%;
+  }
+
   .preview {
     min-height: auto;
+  }
+
+  .preview-actions,
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .preview-actions button,
+  .actions button {
+    width: 100%;
+  }
+
+  textarea {
+    min-height: 320px;
   }
 }

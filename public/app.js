@@ -1,5 +1,6 @@
 const form = document.querySelector("#meeting-form");
 const statusEl = document.querySelector("#status");
+const previewPanel = document.querySelector("#preview-panel");
 const editor = document.querySelector("#editor");
 const emptyState = document.querySelector("#empty-state");
 const publishButton = document.querySelector("#publish-button");
@@ -81,6 +82,7 @@ function field(key, label, value, small = false) {
 }
 
 function renderEditor(data) {
+  previewPanel.hidden = false;
   emptyState.hidden = true;
   editor.hidden = false;
   editor.innerHTML = `
@@ -95,6 +97,10 @@ function renderEditor(data) {
     <div class="notice">수정한 내용 그대로 Notion에 업로드됩니다. 액션아이템은 한 줄에 하나씩 적어주세요.</div>
   `;
   publishButton.disabled = false;
+
+  if (window.matchMedia("(max-width: 900px)").matches) {
+    previewPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 }
 
 function collectMinutes() {
