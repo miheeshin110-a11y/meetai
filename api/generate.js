@@ -1,0 +1,97 @@
+const {
+  allowCors,
+  requireMethod,
+  requirePassword,
+  readJson,
+  sendJson,
+  requireEnv
+} = require("./_utils");
+
+function stripCodeFence(text) {
+  return String(text || "")
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+}
+
+function todayKorea() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(new Date());
+}
+
+module.exports = async function handler(req, res) {
+  if (allowCors(req, res)) return;
+  if (!requireMethod(req, res)) return;
+  if (!requirePassword(req, res)) return;
+
+  try {
+    requireEnv(["ANTHROPIC_API_KEY"]);
+    const body = await readJson(req);
+    const transcript = String(body.transcript || "").trim();
+    if (transcript.length < 20) {
+      return sendJson(res, 400, { error: "클로바노트 원문을 20자 이상 입력해주세요." });
+    }
+
+    const meetingDate = body.meetingDate || todayKorea();
+    const clientName = body.clientName || "";
+    const owner = body.owner || "";
+
+    const prompt = `너는 회사 미팅 회의록을 정리하는 운영 담당자다.
+아래 클로바노트 원문을 바탕으로 한국어 회의록 JSON만 생성해라.
+마크다운 코드블록 없이 순수 JSON만 반환해라.
+
+반드시 포함할 필드:
+{
+  "title": "YYYY년 M월 D일 거래처명 미팅",
+  "meeting_date": "YYYY-MM-DD",
+  "client_name": "거래처명",
+  "owner": "작성 담당자",
+  "attendees": ["참석자"],
+  "summary": "3~5문장 요약",
+  "discussion_points": ["주요 논의사항"],
+  "decisions": ["결정사항"],
+  "action_items": [{"task":"할 일","owner":"담당자","due_date":"YYYY-MM-DD 또는 미정"}],
+  "risks": ["리스크 또는 확인사항"],
+  "next_steps": ["다음 단계"],
+  "keywords": ["키워드"]
+}
+
+입력 정보:
+- 미팅일: ${meetingDate}
+- 거래처명: ${clientName || "원문에서 추정"}
+- 작성 담당자: ${owner || "원문에서 추정"}
+
+원문:
+${transcript}`;
+
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": process.env.ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01"
+      },
+      body: JSON.stringify({
+        model: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6",
+        max_tokens: 1800,
+        temperature: 0.2,
+        messages: [{ role: "user", content: prompt }]
+      })
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error?.message || `Claude API 오류 (${response.status})`);
+    }
+
+    const text = data.content?.map((part) => part.text || "").join("").trim();
+    const minutes = JSON.parse(stripCodeFence(text));
+    sendJson(res, 200, { minutes });
+  } catch (error) {
+    sendJson(res, 500, { error: error.message || "회의록 생성 중 오류가 발생했습니다." });
+  }
+};
