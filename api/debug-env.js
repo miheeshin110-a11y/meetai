@@ -20,7 +20,10 @@ module.exports = async function handler(req, res) {
   if (!["GET", "POST"].includes(req.method)) {
     return sendJson(res, 405, { error: "GET 또는 POST 요청만 허용됩니다." });
   }
-  if (!requirePassword(req, res)) return;
+  const configuredPassword = cleanEnvValue("APP_PASSWORD");
+  const url = new URL(req.url, "https://meetai.local");
+  const queryPassword = url.searchParams.get("password");
+  if (configuredPassword && queryPassword !== configuredPassword && !requirePassword(req, res)) return;
 
   sendJson(res, 200, {
     version: "v6-debug-env",
