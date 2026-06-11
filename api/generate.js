@@ -1,7 +1,6 @@
 const {
   allowCors,
   requireMethod,
-  requirePassword,
   readJson,
   sendJson,
   requireEnv,
@@ -34,7 +33,6 @@ function keyHint(value) {
 module.exports = async function handler(req, res) {
   if (allowCors(req, res)) return;
   if (!requireMethod(req, res)) return;
-  if (!requirePassword(req, res)) return;
 
   let anthropicApiKey = "";
   try {

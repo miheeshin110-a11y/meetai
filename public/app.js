@@ -11,7 +11,6 @@ const inputs = {
   meetingDate: document.querySelector("#meetingDate"),
   clientName: document.querySelector("#clientName"),
   owner: document.querySelector("#owner"),
-  appPassword: document.querySelector("#appPassword"),
   transcript: document.querySelector("#transcript")
 };
 
@@ -29,9 +28,7 @@ function setStatus(message, busy = false) {
 }
 
 function headers() {
-  const result = { "Content-Type": "application/json" };
-  if (inputs.appPassword.value) result["X-App-Password"] = inputs.appPassword.value;
-  return result;
+  return { "Content-Type": "application/json" };
 }
 
 async function postJson(url, payload) {

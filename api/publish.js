@@ -1,7 +1,6 @@
 const {
   allowCors,
   requireMethod,
-  requirePassword,
   readJson,
   sendJson,
   requireEnv,
@@ -89,7 +88,6 @@ function setProperty(properties, schema, name, value) {
 module.exports = async function handler(req, res) {
   if (allowCors(req, res)) return;
   if (!requireMethod(req, res)) return;
-  if (!requirePassword(req, res)) return;
 
   try {
     requireEnv(["NOTION_TOKEN", "NOTION_DATABASE_ID"]);
