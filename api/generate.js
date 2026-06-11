@@ -36,9 +36,10 @@ module.exports = async function handler(req, res) {
   if (!requireMethod(req, res)) return;
   if (!requirePassword(req, res)) return;
 
+  let anthropicApiKey = "";
   try {
     requireEnv(["ANTHROPIC_API_KEY"]);
-    const anthropicApiKey = cleanEnvValue("ANTHROPIC_API_KEY");
+    anthropicApiKey = cleanEnvValue("ANTHROPIC_API_KEY");
     const anthropicModel = cleanEnvValue("ANTHROPIC_MODEL") || "claude-sonnet-4-20250514";
     if (!anthropicApiKey.startsWith("sk-ant-")) {
       return sendJson(res, 400, {
@@ -114,6 +115,12 @@ ${transcript}`;
     const minutes = JSON.parse(stripCodeFence(text));
     sendJson(res, 200, { minutes });
   } catch (error) {
-    sendJson(res, 500, { error: error.message || "회의록 생성 중 오류가 발생했습니다." });
+    const message = error.message || "회의록 생성 중 오류가 발생했습니다.";
+    const needsHint = /token|auth|api key|credential/i.test(message) && !message.includes("Vercel에 적용된");
+    sendJson(res, 500, {
+      error: needsHint
+        ? `${message} / Vercel에 적용된 ANTHROPIC_API_KEY: ${keyHint(anthropicApiKey)}`
+        : message
+    });
   }
 };
