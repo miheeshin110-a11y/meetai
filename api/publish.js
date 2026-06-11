@@ -120,7 +120,7 @@ module.exports = async function handler(req, res) {
         parent: { database_id: databaseId },
         icon: { type: "emoji", emoji: "📋" },
         properties,
-        children: buildNotionChildren(minutes, transcript)
+        children: buildNotionChildren(minutes)
       })
     });
 

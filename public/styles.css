@@ -199,6 +199,10 @@ button:disabled {
   padding: 28px;
 }
 
+.empty[hidden] {
+  display: none;
+}
+
 .editor {
   display: grid;
   gap: 16px;

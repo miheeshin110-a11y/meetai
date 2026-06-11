@@ -122,7 +122,7 @@ function actionBlocks(items) {
   });
 }
 
-function buildNotionChildren(minutes, transcript) {
+function buildNotionChildren(minutes) {
   const children = [
     textBlock("heading_2", "회의 요약"),
     textBlock("paragraph", minutes.summary),
@@ -135,15 +135,7 @@ function buildNotionChildren(minutes, transcript) {
     textBlock("heading_2", "리스크 및 확인사항"),
     ...bullets(minutes.risks, "특이 리스크 없음"),
     textBlock("heading_2", "다음 단계"),
-    ...bullets(minutes.next_steps, "다음 단계 없음"),
-    {
-      object: "block",
-      type: "toggle",
-      toggle: {
-        rich_text: richText("클로바노트 원문"),
-        children: chunkText(transcript).slice(0, 80).map((part) => textBlock("paragraph", part))
-      }
-    }
+    ...bullets(minutes.next_steps, "다음 단계 없음")
   ];
 
   return children.slice(0, 95);
