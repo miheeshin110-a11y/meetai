@@ -7,13 +7,6 @@ const {
   cleanEnvValue
 } = require("./_utils");
 
-function stripCodeFence(text) {
-  return String(text || "")
-    .replace(/^```(?:json)?\s*/i, "")
-    .replace(/\s*```$/i, "")
-    .trim();
-}
-
 function todayKorea() {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Seoul",
@@ -25,9 +18,7 @@ function todayKorea() {
 
 function keyHint(value) {
   if (!value) return "empty";
-  const start = value.slice(0, 16);
-  const end = value.slice(-6);
-  return `${start}...${end} (length ${value.length})`;
+  return `${value.slice(0, 16)}...${value.slice(-6)} (length ${value.length})`;
 }
 
 function resolveAnthropicModel(value) {
@@ -39,6 +30,74 @@ function resolveAnthropicModel(value) {
   return aliases[model] || model || "claude-sonnet-4-6";
 }
 
+const minutesTool = {
+  name: "create_meeting_minutes",
+  description: "Create structured Korean meeting minutes from a ClovaNote transcript.",
+  input_schema: {
+    type: "object",
+    additionalProperties: false,
+    required: [
+      "title",
+      "meeting_date",
+      "client_name",
+      "owner",
+      "attendees",
+      "summary",
+      "discussion_points",
+      "decisions",
+      "action_items",
+      "risks",
+      "next_steps",
+      "keywords"
+    ],
+    properties: {
+      title: { type: "string" },
+      meeting_date: { type: "string" },
+      client_name: { type: "string" },
+      owner: { type: "string" },
+      attendees: { type: "array", items: { type: "string" } },
+      summary: { type: "string" },
+      discussion_points: { type: "array", items: { type: "string" } },
+      decisions: { type: "array", items: { type: "string" } },
+      action_items: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["task", "owner", "due_date"],
+          properties: {
+            task: { type: "string" },
+            owner: { type: "string" },
+            due_date: { type: "string" }
+          }
+        }
+      },
+      risks: { type: "array", items: { type: "string" } },
+      next_steps: { type: "array", items: { type: "string" } },
+      keywords: { type: "array", items: { type: "string" } }
+    }
+  }
+};
+
+function normalizeMinutes(minutes, fallback) {
+  const date = minutes.meeting_date || fallback.meetingDate;
+  const client = minutes.client_name || fallback.clientName || "미상";
+  return {
+    title: minutes.title || `${date} ${client} 미팅`,
+    meeting_date: date,
+    client_name: client,
+    owner: minutes.owner || fallback.owner || "미상",
+    attendees: Array.isArray(minutes.attendees) ? minutes.attendees : [],
+    summary: minutes.summary || "요약 없음",
+    discussion_points: Array.isArray(minutes.discussion_points) ? minutes.discussion_points : [],
+    decisions: Array.isArray(minutes.decisions) ? minutes.decisions : [],
+    action_items: Array.isArray(minutes.action_items) ? minutes.action_items : [],
+    risks: Array.isArray(minutes.risks) ? minutes.risks : [],
+    next_steps: Array.isArray(minutes.next_steps) ? minutes.next_steps : [],
+    keywords: Array.isArray(minutes.keywords) ? minutes.keywords : []
+  };
+}
+
 module.exports = async function handler(req, res) {
   if (allowCors(req, res)) return;
   if (!requireMethod(req, res)) return;
@@ -48,6 +107,7 @@ module.exports = async function handler(req, res) {
     requireEnv(["ANTHROPIC_API_KEY"]);
     anthropicApiKey = cleanEnvValue("ANTHROPIC_API_KEY");
     const anthropicModel = resolveAnthropicModel(cleanEnvValue("ANTHROPIC_MODEL"));
+
     if (!anthropicApiKey.startsWith("sk-ant-")) {
       return sendJson(res, 400, {
         error: "ANTHROPIC_API_KEY 값이 API Key 형식이 아닙니다. Vercel Value 칸에는 sk-ant-... 로 시작하는 키만 넣어주세요."
@@ -64,32 +124,21 @@ module.exports = async function handler(req, res) {
     const clientName = body.clientName || "";
     const owner = body.owner || "";
 
-    const prompt = `너는 회사 미팅 회의록을 정리하는 운영 담당자다.
-아래 클로바노트 원문을 바탕으로 한국어 회의록 JSON만 생성해라.
-마크다운 코드블록 없이 순수 JSON만 반환해라.
+    const prompt = `클로바노트 원문을 한국어 회의록으로 정리해 주세요.
 
-반드시 포함할 필드:
-{
-  "title": "YYYY년 M월 D일 거래처명 미팅",
-  "meeting_date": "YYYY-MM-DD",
-  "client_name": "거래처명",
-  "owner": "작성 담당자",
-  "attendees": ["참석자"],
-  "summary": "3~5문장 요약",
-  "discussion_points": ["주요 논의사항"],
-  "decisions": ["결정사항"],
-  "action_items": [{"task":"할 일","owner":"담당자","due_date":"YYYY-MM-DD 또는 미정"}],
-  "risks": ["리스크 또는 확인사항"],
-  "next_steps": ["다음 단계"],
-  "keywords": ["키워드"]
-}
+작성 기준:
+- 회의명은 "YYYY년 M월 D일 거래처명 미팅" 형식으로 작성
+- 요약은 3~5문장
+- 결정사항과 액션아이템을 명확히 분리
+- 기한이 없으면 due_date는 "미정"
+- 원문에 없는 내용은 추측하지 말고 "미상" 또는 "미정" 사용
 
 입력 정보:
 - 미팅일: ${meetingDate}
-- 거래처명: ${clientName || "원문에서 추정"}
-- 작성 담당자: ${owner || "원문에서 추정"}
+- 거래처명: ${clientName || "원문에서 확인"}
+- 작성 담당자: ${owner || "원문에서 확인"}
 
-원문:
+클로바노트 원문:
 ${transcript}`;
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -101,8 +150,10 @@ ${transcript}`;
       },
       body: JSON.stringify({
         model: anthropicModel,
-        max_tokens: 1800,
-        temperature: 0.2,
+        max_tokens: 2200,
+        temperature: 0.1,
+        tools: [minutesTool],
+        tool_choice: { type: "tool", name: "create_meeting_minutes" },
         messages: [{ role: "user", content: prompt }]
       })
     });
@@ -111,15 +162,17 @@ ${transcript}`;
     if (!response.ok) {
       const message = data.error?.message || `Claude API 오류 (${response.status})`;
       if (response.status === 401 || /token|auth|api key/i.test(message)) {
-        throw new Error(
-          `${message} / Vercel에 적용된 ANTHROPIC_API_KEY: ${keyHint(anthropicApiKey)}`
-        );
+        throw new Error(`${message} / Vercel에 적용된 ANTHROPIC_API_KEY: ${keyHint(anthropicApiKey)}`);
       }
       throw new Error(message);
     }
 
-    const text = data.content?.map((part) => part.text || "").join("").trim();
-    const minutes = JSON.parse(stripCodeFence(text));
+    const toolUse = data.content?.find((part) => part.type === "tool_use" && part.name === "create_meeting_minutes");
+    if (!toolUse?.input) {
+      throw new Error("AI가 회의록 구조를 반환하지 못했습니다. 원문을 조금 줄여 다시 시도해주세요.");
+    }
+
+    const minutes = normalizeMinutes(toolUse.input, { meetingDate, clientName, owner });
     sendJson(res, 200, { minutes });
   } catch (error) {
     const message = error.message || "회의록 생성 중 오류가 발생했습니다.";
