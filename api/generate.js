@@ -30,6 +30,15 @@ function keyHint(value) {
   return `${start}...${end} (length ${value.length})`;
 }
 
+function resolveAnthropicModel(value) {
+  const model = String(value || "").trim();
+  const aliases = {
+    "claude-sonnet-4-20250514": "claude-sonnet-4-6",
+    "claude-sonnet-4-5": "claude-sonnet-4-6"
+  };
+  return aliases[model] || model || "claude-sonnet-4-6";
+}
+
 module.exports = async function handler(req, res) {
   if (allowCors(req, res)) return;
   if (!requireMethod(req, res)) return;
@@ -38,7 +47,7 @@ module.exports = async function handler(req, res) {
   try {
     requireEnv(["ANTHROPIC_API_KEY"]);
     anthropicApiKey = cleanEnvValue("ANTHROPIC_API_KEY");
-    const anthropicModel = cleanEnvValue("ANTHROPIC_MODEL") || "claude-sonnet-4-20250514";
+    const anthropicModel = resolveAnthropicModel(cleanEnvValue("ANTHROPIC_MODEL"));
     if (!anthropicApiKey.startsWith("sk-ant-")) {
       return sendJson(res, 400, {
         error: "ANTHROPIC_API_KEY 값이 API Key 형식이 아닙니다. Vercel Value 칸에는 sk-ant-... 로 시작하는 키만 넣어주세요."
