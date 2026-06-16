@@ -32,7 +32,7 @@ function resolveAnthropicModel(value) {
 
 const minutesTool = {
   name: "create_meeting_minutes",
-  description: "Create structured Korean meeting minutes from a ClovaNote transcript.",
+  description: "Create detailed but well-organized Korean meeting minutes from a ClovaNote transcript.",
   input_schema: {
     type: "object",
     additionalProperties: false,
@@ -51,67 +51,104 @@ const minutesTool = {
       "keywords"
     ],
     properties: {
-      title: { type: "string" },
-      meeting_date: { type: "string" },
-      client_name: { type: "string" },
-      owner: { type: "string" },
-      attendees: { type: "array", minItems: 1, items: { type: "string" } },
-      summary: { type: "string" },
-      discussion_points: { type: "array", minItems: 1, items: { type: "string" } },
-      decisions: { type: "array", minItems: 1, items: { type: "string" } },
+      title: { type: "string", maxLength: 100 },
+      meeting_date: { type: "string", maxLength: 10 },
+      client_name: { type: "string", maxLength: 50 },
+      owner: { type: "string", maxLength: 40 },
+      attendees: {
+        type: "array",
+        minItems: 1,
+        maxItems: 15,
+        items: { type: "string", maxLength: 40 }
+      },
+      summary: { type: "string", maxLength: 520 },
+      discussion_points: {
+        type: "array",
+        minItems: 1,
+        maxItems: 12,
+        items: { type: "string", maxLength: 180 }
+      },
+      decisions: {
+        type: "array",
+        minItems: 1,
+        maxItems: 8,
+        items: { type: "string", maxLength: 160 }
+      },
       action_items: {
         type: "array",
         minItems: 1,
+        maxItems: 12,
         items: {
           type: "object",
           additionalProperties: false,
           required: ["task", "owner", "due_date"],
           properties: {
-            task: { type: "string" },
-            owner: { type: "string" },
-            due_date: { type: "string" }
+            task: { type: "string", maxLength: 160 },
+            owner: { type: "string", maxLength: 50 },
+            due_date: { type: "string", maxLength: 30 }
           }
         }
       },
-      risks: { type: "array", minItems: 1, items: { type: "string" } },
-      next_steps: { type: "array", minItems: 1, items: { type: "string" } },
-      keywords: { type: "array", minItems: 1, items: { type: "string" } }
+      risks: {
+        type: "array",
+        minItems: 1,
+        maxItems: 6,
+        items: { type: "string", maxLength: 160 }
+      },
+      next_steps: {
+        type: "array",
+        minItems: 1,
+        maxItems: 8,
+        items: { type: "string", maxLength: 160 }
+      },
+      keywords: {
+        type: "array",
+        minItems: 1,
+        maxItems: 6,
+        items: { type: "string", maxLength: 30 }
+      }
     }
   }
 };
 
+function compact(text, maxLength) {
+  const value = String(text || "").replace(/\s+/g, " ").trim();
+  return value.length > maxLength ? `${value.slice(0, maxLength - 3)}...` : value;
+}
+
+function compactList(value, fallbackItem, maxItems, maxLength) {
+  const items = Array.isArray(value)
+    ? value.map((item) => compact(item, maxLength)).filter(Boolean)
+    : [];
+  return (items.length ? items : [fallbackItem]).slice(0, maxItems);
+}
+
 function normalizeMinutes(minutes, fallback) {
   const date = minutes.meeting_date || fallback.meetingDate;
   const client = minutes.client_name || fallback.clientName || "미상";
-  const list = (value, fallbackItem) => {
-    if (Array.isArray(value) && value.some((item) => String(item || "").trim())) {
-      return value.filter((item) => String(item || "").trim());
-    }
-    return [fallbackItem];
-  };
   const actions = Array.isArray(minutes.action_items)
     ? minutes.action_items.filter((item) => item && String(item.task || "").trim())
     : [];
 
   return {
-    title: minutes.title || `${date} ${client} 미팅`,
+    title: compact(minutes.title || `${date} ${client} 미팅`, 100),
     meeting_date: date,
-    client_name: client,
-    owner: minutes.owner || fallback.owner || "미상",
-    attendees: list(minutes.attendees, "참석자 확인 필요"),
-    summary: minutes.summary || "요약 없음",
-    discussion_points: list(minutes.discussion_points, "주요 논의사항 확인 필요"),
-    decisions: list(minutes.decisions, "원문에 명시된 결정사항 없음"),
+    client_name: compact(client, 50),
+    owner: compact(minutes.owner || fallback.owner || "미상", 40),
+    attendees: compactList(minutes.attendees, "참석자 확인 필요", 15, 40),
+    summary: compact(minutes.summary || "요약 없음", 520),
+    discussion_points: compactList(minutes.discussion_points, "주요 논의사항 확인 필요", 12, 180),
+    decisions: compactList(minutes.decisions, "원문에 명시된 결정사항 없음", 8, 160),
     action_items: actions.length
-      ? actions.map((item) => ({
-          task: item.task || "후속 조치 확인",
-          owner: item.owner || "담당자 확인 필요",
-          due_date: item.due_date || "미정"
+      ? actions.slice(0, 12).map((item) => ({
+          task: compact(item.task || "후속 조치 확인", 160),
+          owner: compact(item.owner || "담당자 확인 필요", 50),
+          due_date: compact(item.due_date || "미정", 30)
         }))
       : [{ task: "원문에 명시된 액션아이템 없음", owner: "해당 없음", due_date: "해당 없음" }],
-    risks: list(minutes.risks, "원문에 명시된 특이 리스크 없음"),
-    next_steps: list(minutes.next_steps, "원문에 명시된 다음 단계 없음"),
-    keywords: list(minutes.keywords, client)
+    risks: compactList(minutes.risks, "원문에 명시된 특이 리스크 없음", 6, 160),
+    next_steps: compactList(minutes.next_steps, "원문에 명시된 다음 단계 없음", 8, 160),
+    keywords: compactList(minutes.keywords, client, 6, 30)
   };
 }
 
@@ -143,18 +180,27 @@ module.exports = async function handler(req, res) {
 
     const prompt = `클로바노트 원문을 한국어 회의록으로 정리해 주세요.
 
+목표:
+- 짧게 줄이는 것이 아니라, 중요한 내용을 충분히 담되 읽기 좋게 정리합니다.
+- 원문 전체를 그대로 옮기지 말고, 중복 발언과 말버릇은 제거합니다.
+- 상품명, 수량, 일정, 금액, 담당자, 이슈 원인은 가능하면 보존합니다.
+- 각 항목은 한 문장 안에 핵심 배경과 의미가 드러나게 작성합니다.
+- 너무 긴 문단은 피하고, 항목별 bullet로 정돈합니다.
+
 작성 기준:
-- 회의명은 "YYYY년 M월 D일 거래처명 미팅" 형식으로 작성
-- 요약은 3~5문장
-- 결정사항과 액션아이템을 명확히 분리
-- 기한이 없으면 due_date는 "미정"
-- 원문에 없는 내용은 추측하지 않음
-- 모든 배열 필드는 반드시 최소 1개 이상 채움
-- 결정사항이 원문에 없으면 "원문에 명시된 결정사항 없음" 입력
-- 리스크가 원문에 없으면 "원문에 명시된 특이 리스크 없음" 입력
-- 액션아이템이 원문에 없으면 task는 "원문에 명시된 액션아이템 없음", owner는 "해당 없음", due_date는 "해당 없음" 입력
-- 다음 단계가 원문에 없으면 "원문에 명시된 다음 단계 없음" 입력
-- 다음 단계가 원문에 있으면 반드시 next_steps에 반영
+- summary: 회의 전체 맥락과 결론을 3~5문장으로 작성
+- discussion_points: 논의된 이슈를 주제별로 6~12개 정리
+- decisions: 실제로 확정된 내용만 작성. 논의만 된 내용은 넣지 않음
+- action_items: 누가/무엇을/언제까지 해야 하는지 확인 가능한 항목만 작성
+- risks: 일정, 재고, 비용, 품질, 커뮤니케이션 리스크가 있으면 작성
+- next_steps: 다음 회의, 확인 예정, 추가 발주, 공유 필요 등 후속 흐름 작성
+- keywords: 나중에 검색할 핵심어 3~6개
+
+없는 항목 처리:
+- 결정사항이 원문에 없으면 "원문에 명시된 결정사항 없음"
+- 액션아이템이 원문에 없으면 task는 "원문에 명시된 액션아이템 없음", owner/due_date는 "해당 없음"
+- 리스크가 원문에 없으면 "원문에 명시된 특이 리스크 없음"
+- 다음 단계가 원문에 없으면 "원문에 명시된 다음 단계 없음"
 
 입력 정보:
 - 미팅일: ${meetingDate}
@@ -173,7 +219,7 @@ ${transcript}`;
       },
       body: JSON.stringify({
         model: anthropicModel,
-        max_tokens: 2200,
+        max_tokens: 2600,
         temperature: 0.1,
         tools: [minutesTool],
         tool_choice: { type: "tool", name: "create_meeting_minutes" },
