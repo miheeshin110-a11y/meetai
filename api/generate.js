@@ -101,16 +101,16 @@ function normalizeMinutes(minutes, fallback) {
     attendees: list(minutes.attendees, "참석자 확인 필요"),
     summary: minutes.summary || "요약 없음",
     discussion_points: list(minutes.discussion_points, "주요 논의사항 확인 필요"),
-    decisions: list(minutes.decisions, "명시된 결정사항 없음"),
+    decisions: list(minutes.decisions, "원문에 명시된 결정사항 없음"),
     action_items: actions.length
       ? actions.map((item) => ({
           task: item.task || "후속 조치 확인",
           owner: item.owner || "담당자 확인 필요",
           due_date: item.due_date || "미정"
         }))
-      : [{ task: "후속 조치 확인", owner: "담당자 확인 필요", due_date: "미정" }],
-    risks: list(minutes.risks, "특이 리스크 없음"),
-    next_steps: list(minutes.next_steps, "다음 단계 확인 필요"),
+      : [{ task: "원문에 명시된 액션아이템 없음", owner: "해당 없음", due_date: "해당 없음" }],
+    risks: list(minutes.risks, "원문에 명시된 특이 리스크 없음"),
+    next_steps: list(minutes.next_steps, "원문에 명시된 다음 단계 없음"),
     keywords: list(minutes.keywords, client)
   };
 }
@@ -148,11 +148,12 @@ module.exports = async function handler(req, res) {
 - 요약은 3~5문장
 - 결정사항과 액션아이템을 명확히 분리
 - 기한이 없으면 due_date는 "미정"
-- 원문에 없는 내용은 추측하지 말고 "미상" 또는 "미정" 사용
+- 원문에 없는 내용은 추측하지 않음
 - 모든 배열 필드는 반드시 최소 1개 이상 채움
-- 결정사항이 명확하지 않으면 "명시된 결정사항 없음" 입력
-- 리스크가 없으면 "특이 리스크 없음" 입력
-- 액션아이템이 없으면 task는 "후속 조치 확인", owner는 "담당자 확인 필요", due_date는 "미정" 입력
+- 결정사항이 원문에 없으면 "원문에 명시된 결정사항 없음" 입력
+- 리스크가 원문에 없으면 "원문에 명시된 특이 리스크 없음" 입력
+- 액션아이템이 원문에 없으면 task는 "원문에 명시된 액션아이템 없음", owner는 "해당 없음", due_date는 "해당 없음" 입력
+- 다음 단계가 원문에 없으면 "원문에 명시된 다음 단계 없음" 입력
 - 다음 단계가 원문에 있으면 반드시 next_steps에 반영
 
 입력 정보:
