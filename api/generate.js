@@ -55,12 +55,13 @@ const minutesTool = {
       meeting_date: { type: "string" },
       client_name: { type: "string" },
       owner: { type: "string" },
-      attendees: { type: "array", items: { type: "string" } },
+      attendees: { type: "array", minItems: 1, items: { type: "string" } },
       summary: { type: "string" },
-      discussion_points: { type: "array", items: { type: "string" } },
-      decisions: { type: "array", items: { type: "string" } },
+      discussion_points: { type: "array", minItems: 1, items: { type: "string" } },
+      decisions: { type: "array", minItems: 1, items: { type: "string" } },
       action_items: {
         type: "array",
+        minItems: 1,
         items: {
           type: "object",
           additionalProperties: false,
@@ -72,9 +73,9 @@ const minutesTool = {
           }
         }
       },
-      risks: { type: "array", items: { type: "string" } },
-      next_steps: { type: "array", items: { type: "string" } },
-      keywords: { type: "array", items: { type: "string" } }
+      risks: { type: "array", minItems: 1, items: { type: "string" } },
+      next_steps: { type: "array", minItems: 1, items: { type: "string" } },
+      keywords: { type: "array", minItems: 1, items: { type: "string" } }
     }
   }
 };
@@ -82,19 +83,35 @@ const minutesTool = {
 function normalizeMinutes(minutes, fallback) {
   const date = minutes.meeting_date || fallback.meetingDate;
   const client = minutes.client_name || fallback.clientName || "미상";
+  const list = (value, fallbackItem) => {
+    if (Array.isArray(value) && value.some((item) => String(item || "").trim())) {
+      return value.filter((item) => String(item || "").trim());
+    }
+    return [fallbackItem];
+  };
+  const actions = Array.isArray(minutes.action_items)
+    ? minutes.action_items.filter((item) => item && String(item.task || "").trim())
+    : [];
+
   return {
     title: minutes.title || `${date} ${client} 미팅`,
     meeting_date: date,
     client_name: client,
     owner: minutes.owner || fallback.owner || "미상",
-    attendees: Array.isArray(minutes.attendees) ? minutes.attendees : [],
+    attendees: list(minutes.attendees, "참석자 확인 필요"),
     summary: minutes.summary || "요약 없음",
-    discussion_points: Array.isArray(minutes.discussion_points) ? minutes.discussion_points : [],
-    decisions: Array.isArray(minutes.decisions) ? minutes.decisions : [],
-    action_items: Array.isArray(minutes.action_items) ? minutes.action_items : [],
-    risks: Array.isArray(minutes.risks) ? minutes.risks : [],
-    next_steps: Array.isArray(minutes.next_steps) ? minutes.next_steps : [],
-    keywords: Array.isArray(minutes.keywords) ? minutes.keywords : []
+    discussion_points: list(minutes.discussion_points, "주요 논의사항 확인 필요"),
+    decisions: list(minutes.decisions, "명시된 결정사항 없음"),
+    action_items: actions.length
+      ? actions.map((item) => ({
+          task: item.task || "후속 조치 확인",
+          owner: item.owner || "담당자 확인 필요",
+          due_date: item.due_date || "미정"
+        }))
+      : [{ task: "후속 조치 확인", owner: "담당자 확인 필요", due_date: "미정" }],
+    risks: list(minutes.risks, "특이 리스크 없음"),
+    next_steps: list(minutes.next_steps, "다음 단계 확인 필요"),
+    keywords: list(minutes.keywords, client)
   };
 }
 
@@ -132,6 +149,11 @@ module.exports = async function handler(req, res) {
 - 결정사항과 액션아이템을 명확히 분리
 - 기한이 없으면 due_date는 "미정"
 - 원문에 없는 내용은 추측하지 말고 "미상" 또는 "미정" 사용
+- 모든 배열 필드는 반드시 최소 1개 이상 채움
+- 결정사항이 명확하지 않으면 "명시된 결정사항 없음" 입력
+- 리스크가 없으면 "특이 리스크 없음" 입력
+- 액션아이템이 없으면 task는 "후속 조치 확인", owner는 "담당자 확인 필요", due_date는 "미정" 입력
+- 다음 단계가 원문에 있으면 반드시 next_steps에 반영
 
 입력 정보:
 - 미팅일: ${meetingDate}
