@@ -2,65 +2,111 @@
 <html lang="ko">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>MeetAI 회의록 관리</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#ffffff" />
+    <title>MeetAI 회의록</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
+    />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <main class="shell">
-      <section class="topbar">
-        <div>
-          <p class="eyebrow">MeetAI</p>
-          <h1>회의록 관리</h1>
-        </div>
-        <div class="status" id="status">대기 중</div>
-      </section>
+    <div class="app">
+      <header class="appbar">
+        <button type="button" class="icon-btn" id="back-button" aria-label="이전 화면" hidden>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+        <h1 class="appbar-title" id="appbar-title">회의록</h1>
+        <button type="button" class="text-btn" id="sample-button">샘플 넣기</button>
+      </header>
 
-      <section class="layout">
-        <form class="panel" id="meeting-form">
-          <div class="panel-head">
-            <h2>미팅 정보</h2>
-            <button type="button" class="ghost" id="sample-button">샘플</button>
-          </div>
+      <main class="main">
+        <!-- 1. 입력 화면 -->
+        <form class="screen" id="meeting-form" data-screen="input" novalidate>
+          <section class="block">
+            <h2 class="block-title">미팅 정보</h2>
+            <div class="grid">
+              <label class="field">
+                <span class="field-label">미팅일</span>
+                <input type="date" id="meetingDate" required />
+              </label>
+              <label class="field">
+                <span class="field-label">거래처명</span>
+                <input type="text" id="clientName" placeholder="예: 땡땡거래처" autocomplete="off" required />
+              </label>
+              <label class="field">
+                <span class="field-label">작성 담당자</span>
+                <input type="text" id="owner" placeholder="예: 김민수" autocomplete="off" required />
+              </label>
+              <label class="field">
+                <span class="field-label">앱 비밀번호</span>
+                <input type="password" id="appPassword" placeholder="설정한 경우 입력" autocomplete="off" />
+              </label>
+            </div>
+          </section>
 
-          <div class="grid">
-            <label>
-              <span>미팅일</span>
-              <input type="date" id="meetingDate" required />
-            </label>
-            <label>
-              <span>거래처명</span>
-              <input type="text" id="clientName" placeholder="예: 땡땡거래처" required />
-            </label>
-            <label>
-              <span>작성 담당자</span>
-              <input type="text" id="owner" placeholder="예: 김민수" required />
-            </label>
-          </div>
+          <div class="band" aria-hidden="true"></div>
 
-          <label>
-            <span>클로바노트 원문</span>
-            <textarea id="transcript" placeholder="클로바노트에서 복사한 회의 텍스트를 붙여넣으세요." required></textarea>
-          </label>
+          <section class="block block-grow">
+            <div class="block-head">
+              <h2 class="block-title">클로바노트 원문</h2>
+              <span class="caption" id="char-count">0자</span>
+            </div>
+            <textarea
+              id="transcript"
+              class="transcript"
+              placeholder="클로바노트에서 복사한 회의 텍스트를 붙여넣어 주세요."
+              required
+            ></textarea>
+          </section>
 
-          <div class="actions">
-            <button type="submit" id="generate-button">AI 회의록 생성</button>
+          <div class="bottom-bar">
+            <button type="submit" class="btn btn-primary" id="generate-button">AI 회의록 만들기</button>
           </div>
         </form>
 
-        <section class="panel preview" id="preview-panel" hidden>
-          <div class="panel-head">
-            <h2>회의록 미리보기</h2>
-            <a id="notion-link" class="link" href="#" target="_blank" rel="noreferrer" hidden>Notion 열기</a>
-          </div>
-          <div id="empty-state" class="empty">AI 회의록을 생성하면 여기에서 확인하고 수정할 수 있습니다.</div>
-          <div id="editor" class="editor" hidden></div>
-          <div class="preview-actions">
-            <button type="button" id="publish-button" disabled>Notion 업로드 + Slack 알림</button>
+        <!-- 2. 확인·수정 화면 -->
+        <section class="screen" id="review-screen" data-screen="review" hidden>
+          <section class="block">
+            <h2 class="headline">회의록이 만들어졌어요</h2>
+            <p class="sub">내용을 확인하고 고쳐 주세요</p>
+            <p class="caption meta" id="review-meta"></p>
+          </section>
+
+          <div id="editor"></div>
+
+          <div class="bottom-bar bottom-bar-split">
+            <button type="button" class="btn btn-secondary" id="prev-button">이전</button>
+            <button type="button" class="btn btn-primary" id="publish-button">Notion에 올리기</button>
           </div>
         </section>
-      </section>
-    </main>
+      </main>
+    </div>
+
+    <!-- 진행 상황 시트: 원형 진행률 + 단계 표시 -->
+    <div class="sheet-backdrop" id="sheet" hidden>
+      <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" aria-describedby="sheet-desc">
+        <div class="ring" id="ring" data-state="run">
+          <svg viewBox="0 0 140 140" aria-hidden="true">
+            <circle class="ring-track" cx="70" cy="70" r="60" />
+            <circle class="ring-bar" id="ring-bar" cx="70" cy="70" r="60" />
+          </svg>
+          <div class="ring-center">
+            <span class="ring-pct" id="ring-pct">0</span><span class="ring-unit" id="ring-unit">%</span>
+            <span class="ring-icon" id="ring-icon" aria-hidden="true"></span>
+          </div>
+        </div>
+        <h2 class="sheet-title" id="sheet-title"></h2>
+        <p class="sheet-desc" id="sheet-desc"></p>
+        <ol class="steps" id="steps"></ol>
+        <div class="sheet-actions" id="sheet-actions"></div>
+      </div>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
     <script src="/app.js"></script>
   </body>
